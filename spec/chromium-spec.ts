@@ -2113,7 +2113,8 @@ describe('chromium features', () => {
       'chrome://gpu',
       'chrome://media-internals',
       'chrome://tracing',
-      'chrome://webrtc-internals'
+      'chrome://webrtc-internals',
+      'chrome://process-internals'
     ];
 
     for (const url of urls) {
