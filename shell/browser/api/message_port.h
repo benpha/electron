@@ -35,6 +35,8 @@ class MessagePort : public gin::Wrappable<MessagePort>,
   void Start();
   void Close();
 
+  void OnConnectionError();
+
   void Entangle(blink::MessagePortDescriptor port);
   void Entangle(blink::MessagePortChannel channel);
 
