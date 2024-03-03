@@ -118,50 +118,8 @@ namespace electron {
 
 namespace {
 
-bool IsFramelessWindow(NSView* view) {
-  NSWindow* nswindow = [view window];
-  if (![nswindow respondsToSelector:@selector(shell)])
-    return false;
-  NativeWindow* window = [static_cast<ElectronNSWindow*>(nswindow) shell];
-  return window && !window->has_frame();
-}
-
 bool IsPanel(NSWindow* window) {
   return [window isKindOfClass:[NSPanel class]];
-}
-
-IMP original_set_frame_size = nullptr;
-IMP original_view_did_move_to_superview = nullptr;
-
-// This method is directly called by NSWindow during a window resize on OSX
-// 10.10.0, beta 2. We must override it to prevent the content view from
-// shrinking.
-void SetFrameSize(NSView* self, SEL _cmd, NSSize size) {
-  if (!IsFramelessWindow(self)) {
-    auto original =
-        reinterpret_cast<decltype(&SetFrameSize)>(original_set_frame_size);
-    return original(self, _cmd, size);
-  }
-  // For frameless window, resize the view to cover full window.
-  if ([self superview])
-    size = [[self superview] bounds].size;
-  auto super_impl = reinterpret_cast<decltype(&SetFrameSize)>(
-      [[self superclass] instanceMethodForSelector:_cmd]);
-  super_impl(self, _cmd, size);
-}
-
-// The contentView gets moved around during certain full-screen operations.
-// This is less than ideal, and should eventually be removed.
-void ViewDidMoveToSuperview(NSView* self, SEL _cmd) {
-  if (!IsFramelessWindow(self)) {
-    // [BridgedContentView viewDidMoveToSuperview];
-    auto original = reinterpret_cast<decltype(&ViewDidMoveToSuperview)>(
-        original_view_did_move_to_superview);
-    if (original)
-      original(self, _cmd);
-    return;
-  }
-  [self setFrame:[[self superview] bounds]];
 }
 
 // -[NSWindow orderWindow] does not handle reordering for children
@@ -410,7 +368,7 @@ void NativeWindowMac::SetContentView(views::View* view) {
   set_content_view(view);
   root_view->AddChildView(content_view());
 
-  root_view->Layout();
+  root_view->DeprecatedLayoutImmediately();
 }
 
 void NativeWindowMac::Close() {
@@ -564,12 +522,9 @@ void NativeWindowMac::Hide() {
   [window_ orderOut:nil];
 }
 
-bool NativeWindowMac::IsOccluded() const {
-  return !([window_ occlusionState] & NSWindowOcclusionStateVisible);
-}
-
 bool NativeWindowMac::IsVisible() const {
-  return [window_ isVisible] && !IsMinimized();
+  bool occluded = [window_ occlusionState] == NSWindowOcclusionStateVisible;
+  return [window_ isVisible] && !occluded && !IsMinimized();
 }
 
 bool NativeWindowMac::IsEnabled() const {

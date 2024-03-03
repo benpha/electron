@@ -214,7 +214,7 @@
 #include "components/pdf/browser/pdf_document_helper.h"             // nogncheck
 #include "components/pdf/browser/pdf_navigation_throttle.h"
 #include "components/pdf/browser/pdf_url_loader_request_interceptor.h"
-#include "components/pdf/common/internal_plugin_helpers.h"
+#include "components/pdf/common/constants.h"
 #include "shell/browser/electron_pdf_document_helper_client.h"
 #endif
 
@@ -1036,22 +1036,22 @@ blink::UserAgentMetadata ElectronBrowserClient::GetUserAgentMetadata() {
   return embedder_support::GetUserAgentMetadata();
 }
 
-void ElectronBrowserClient::RegisterNonNetworkNavigationURLLoaderFactories(
-    int frame_tree_node_id,
-    NonNetworkURLLoaderFactoryMap* factories) {
+mojo::PendingRemote<network::mojom::URLLoaderFactory>
+ElectronBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
+    const std::string& scheme,
+    int frame_tree_node_id) {
   content::WebContents* web_contents =
       content::WebContents::FromFrameTreeNodeId(frame_tree_node_id);
   content::BrowserContext* context = web_contents->GetBrowserContext();
 #if BUILDFLAG(ENABLE_ELECTRON_EXTENSIONS)
-  factories->emplace(
-      extensions::kExtensionScheme,
-      extensions::CreateExtensionNavigationURLLoaderFactory(
-          context, false /* we don't support extensions::WebViewGuest */));
+  if (scheme == extensions::kExtensionScheme) {
+    return extensions::CreateExtensionNavigationURLLoaderFactory(
+        context, false /* we don't support extensions::WebViewGuest */);
+  }
 #endif
   // Always allow navigating to file:// URLs.
   auto* protocol_registry = ProtocolRegistry::FromBrowserContext(context);
-  protocol_registry->RegisterURLLoaderFactories(factories,
-                                                true /* allow_file_access */);
+  return protocol_registry->CreateNonNetworkNavigationURLLoaderFactory(scheme);
 }
 
 void ElectronBrowserClient::
@@ -1397,7 +1397,7 @@ void ElectronBrowserClient::OverrideURLLoaderFactoryParams(
     auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
     auto* prefs = WebContentsPreferences::From(web_contents);
     if (prefs && !prefs->IsWebSecurityEnabled()) {
-      factory_params->is_corb_enabled = false;
+      factory_params->is_orb_enabled = false;
       factory_params->disable_web_security = true;
     }
   }

@@ -14,6 +14,7 @@
 #include "shell/browser/ui/views/frameless_view.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
@@ -62,9 +63,6 @@ ui::NavButtonProvider::ButtonState ButtonStateToNavButtonProviderState(
 }
 
 }  // namespace
-
-// static
-const char ClientFrameViewLinux::kViewClassName[] = "ClientFrameView";
 
 ClientFrameViewLinux::ClientFrameViewLinux()
     : theme_(ui::NativeTheme::GetInstanceForNativeUi()),
@@ -272,8 +270,8 @@ gfx::Size ClientFrameViewLinux::GetMaximumSize() const {
   return SizeWithDecorations(FramelessView::GetMaximumSize());
 }
 
-void ClientFrameViewLinux::Layout() {
-  FramelessView::Layout();
+void ClientFrameViewLinux::Layout(PassKey) {
+  LayoutSuperclass<FramelessView>(this);
 
   if (frame_->IsFullscreen()) {
     // Just hide everything and return.
@@ -308,10 +306,6 @@ void ClientFrameViewLinux::OnPaint(gfx::Canvas* canvas) {
                                       GetTitlebarBounds().bottom(),
                                       ShouldPaintAsActive(), GetInputInsets());
   }
-}
-
-const char* ClientFrameViewLinux::GetClassName() const {
-  return kViewClassName;
 }
 
 void ClientFrameViewLinux::PaintAsActiveChanged() {
@@ -506,5 +500,8 @@ views::View* ClientFrameViewLinux::TargetForRect(views::View* root,
                                                  const gfx::Rect& rect) {
   return views::NonClientFrameView::TargetForRect(root, rect);
 }
+
+BEGIN_METADATA(ClientFrameViewLinux)
+END_METADATA
 
 }  // namespace electron

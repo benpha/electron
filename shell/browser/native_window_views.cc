@@ -474,7 +474,7 @@ void NativeWindowViews::SetContentView(views::View* view) {
   set_content_view(view);
   focused_view_ = view;
   root_view_.AddChildView(content_view());
-  root_view_.Layout();
+  root_view_.DeprecatedLayoutImmediately();
 }
 
 void NativeWindowViews::Close() {
@@ -560,14 +560,6 @@ void NativeWindowViews::Hide() {
   // the taskbar host is notified that it should re-add them.
   taskbar_host_.SetThumbarButtonsAdded(false);
 #endif
-}
-
-bool NativeWindowViews::IsOccluded() const {
-  if (!GetNativeWindow())
-    return false;
-  auto occlusion_state =
-      GetNativeWindow()->GetHost()->GetNativeWindowOcclusionState();
-  return occlusion_state == aura::Window::OcclusionState::OCCLUDED;
 }
 
 bool NativeWindowViews::IsVisible() const {

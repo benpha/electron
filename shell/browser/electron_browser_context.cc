@@ -228,6 +228,18 @@ std::string MakePartitionName(const std::string& input) {
   return base::EscapePath(base::ToLowerASCII(input));
 }
 
+[[nodiscard]] content::DesktopMediaID GetAudioDesktopMediaId(
+    const std::vector<std::string>& audio_device_ids) {
+  // content::MediaStreamRequest provides a vector of ids
+  // to allow user preference to influence which stream is
+  // returned. This is a WIP upstream, so for now just use
+  // the first device in the list.
+  // Xref: https://chromium-review.googlesource.com/c/chromium/src/+/5132210
+  if (!audio_device_ids.empty())
+    return content::DesktopMediaID::Parse(audio_device_ids.front());
+  return {};
+}
+
 }  // namespace
 
 // static
@@ -467,7 +479,7 @@ ElectronBrowserContext::GetURLLoaderFactory() {
   params->header_client = std::move(header_client);
   params->process_id = network::mojom::kBrowserProcessId;
   params->is_trusted = true;
-  params->is_corb_enabled = false;
+  params->is_orb_enabled = false;
   // The tests of net module would fail if this setting is true, it seems that
   // the non-NetworkService implementation always has web security enabled.
   params->disable_web_security = false;
@@ -523,7 +535,8 @@ ElectronBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
 
 ResolveProxyHelper* ElectronBrowserContext::GetResolveProxyHelper() {
   if (!resolve_proxy_helper_) {
-    resolve_proxy_helper_ = base::MakeRefCounted<ResolveProxyHelper>(this);
+    resolve_proxy_helper_ = base::MakeRefCounted<ResolveProxyHelper>(
+        GetDefaultStoragePartition()->GetNetworkContext());
   }
   return resolve_proxy_helper_.get();
 }
@@ -629,7 +642,7 @@ void ElectronBrowserContext::DisplayMediaDeviceChosen(
       blink::MediaStreamDevice audio_device(request.audio_type, id, name);
       audio_device.display_media_info = DesktopMediaIDToDisplayMediaInformation(
           nullptr, url::Origin::Create(request.security_origin),
-          content::DesktopMediaID::Parse(request.requested_audio_device_id));
+          GetAudioDesktopMediaId(request.requested_audio_device_ids));
       devices.audio_device = audio_device;
     } else if (result_dict.Get("audio", &rfh)) {
       bool enable_local_echo = false;
@@ -645,14 +658,14 @@ void ElectronBrowserContext::DisplayMediaDeviceChosen(
           "Tab audio");
       audio_device.display_media_info = DesktopMediaIDToDisplayMediaInformation(
           web_contents, url::Origin::Create(request.security_origin),
-          content::DesktopMediaID::Parse(request.requested_audio_device_id));
+          GetAudioDesktopMediaId(request.requested_audio_device_ids));
       devices.audio_device = audio_device;
     } else if (result_dict.Get("audio", &id)) {
       blink::MediaStreamDevice audio_device(request.audio_type, id,
                                             "System audio");
       audio_device.display_media_info = DesktopMediaIDToDisplayMediaInformation(
           nullptr, url::Origin::Create(request.security_origin),
-          content::DesktopMediaID::Parse(request.requested_audio_device_id));
+          GetAudioDesktopMediaId(request.requested_audio_device_ids));
       devices.audio_device = audio_device;
     } else {
       gin_helper::ErrorThrower(args->isolate())
